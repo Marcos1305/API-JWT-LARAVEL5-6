@@ -25,5 +25,23 @@ class AuthController extends Controller
         if($validator->fails()){
             return response()->json(['success' => false, 'error' => $validator->messages()], 400);
         }
+        $name = $request->name;
+        $email = $request->email;
+        $user = User::create($request->all());
+
+        $verification_code = str_random(30); //Generate verification code
+
+        DB::table('user_verifications')->insert(['user_id' => $user->id, 'token' => $verification_code]);
+
+        $subject = 'Please verify your email address.';
+
+        Mail::send('email.verify', ['name' => $name, 'verification_code' => $verification_code], function($mail) use ($email, $name, $subject){
+            $mail->from(getenv('FROM_EMAIL_ADDRESS'), "API LARAVEL");
+            $mail->to($email, $name);
+            $mail->subject($subject);
+        });
+
+        return response()->json(['success' => true, 'message' => 'Thanks for signing up! Please check your email to complete your registration']);
+
     }
 }
