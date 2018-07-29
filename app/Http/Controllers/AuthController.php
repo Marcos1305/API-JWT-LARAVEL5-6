@@ -6,10 +6,10 @@ use Illuminate\Http\Request;
 use App\User;
 use JWTAuth;
 use Tymon\JWTAuth\Exceptions\JWTException;
-use Validator, DB, Hash, Mail;
+use Validator, DB, Hash;
 use Illuminate\Support\Facades\Password;
-use Illuminate\Mail\Message;
-
+use Illuminate\Support\Facades\Mail;
+use App\Mail\Welcome;
 class AuthController extends Controller
 {
     public function register(Request $request)
@@ -25,8 +25,8 @@ class AuthController extends Controller
         if($validator->fails()){
             return response()->json(['success' => false, 'error' => $validator->messages()], 400);
         }
-        $name = $request->name;
-        $email = $request->email;
+
+
         $user = User::create($request->all());
 
         $verification_code = str_random(30); //Generate verification code
@@ -35,15 +35,17 @@ class AuthController extends Controller
 
         $subject = 'Please verify your email address.';
 
-        Mail::send('email.verify', ['name' => $name, 'verification_code' => $verification_code], function($mail) use ($email, $name, $subject){
-            $mail->from(getenv('FROM_EMAIL_ADDRESS'), "API LARAVEL");
-            $mail->to($email, $name);
-            $mail->subject($subject);
-        });
+
+
+        Mail::to($user)->send(new Welcome($verification_code));
+
+
 
         return response()->json(['success' => true, 'message' => 'Thanks for signing up! Please check your email to complete your registration']);
 
     }
+
+
     public function verifyUser($verification_code)
     {
         $check = DB::table('user_verifications')->where('token', $verification_code)->first();
@@ -58,10 +60,11 @@ class AuthController extends Controller
                 ]);
             }
 
-            $user->update(['is_verified' => 1]);
+            $user->is_verified = 1;
+            $user->save();
 
             DB::table('user_verifications')->where('token', $verification_code)->delete();
-            return reponse()->json([
+            return response()->json([
                 'success'   => true,
                 'message'   => 'You have successfully verified email address'
             ]);
@@ -103,5 +106,6 @@ class AuthController extends Controller
         //all good so return the token
         return response()->json(['success' => true, 'data' => ['token' => $token]], 200);
     }
+
 
 }
