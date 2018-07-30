@@ -106,17 +106,39 @@ class AuthController extends Controller
         return response()->json(['success' => true, 'data' => ['token' => $token]], 200);
     }
 
-    public function logout(Request $request)
+    public function logout()
     {
-        $this->validate($request, ['token' => 'required']);
 
         try {
-            JWTAuth::invalidate($request->input('token'));
+            JWTAuth::invalidate(JWTAuth::getToken());
             return response()->json(['success' => true, 'message' => 'You have successfully logged out ']);
         } catch (JWTException $e) {
             //something went wrong list attempting to encode the token
             return response()->json(['success' => false, 'error' => 'Failed to logout, please try again.'], 500);
         }
+    }
+
+    public function recover(Request $request)
+    {
+        $user = User::where('email', $request->email)->first();
+        if(!$user) {
+            $error_message = "Your email address was not found";
+            return response()->json(['success' => false, 'error' => $erro]);
+        }
+
+        try {
+            Password::sendResetLink($request->only('email'), function(Message $message) {
+                $message->subject('Your Password Reset Link');
+            });
+        } catch (\Exception $e) {
+            //Return with error
+
+            $error_message = $e->getMessage();
+            return response()->json(['success' => false, 'error' => $error_message], 401);
+        }
+
+        return response()->json(['success' => true, 'data' => ['message' => 'A reset email has been sent! Please check your email.']
+        ]);
     }
 
 
